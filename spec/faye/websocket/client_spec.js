@@ -1,6 +1,8 @@
-var Client = require('../../../lib/faye/websocket/client')
+var Client = require('../../../lib/faye/websocket/client'),
+    test   = require('jstest').Test,
+    fs     = require('fs')
 
-JS.ENV.WebSocketSteps = JS.Test.asyncSteps({
+var WebSocketSteps = test.asyncSteps({
   server: function(port, secure, callback) {
     this._adapter = new EchoServer()
     this._adapter.listen(port, secure)
@@ -24,7 +26,9 @@ JS.ENV.WebSocketSteps = JS.Test.asyncSteps({
                    callback()
                  }
 
-    this._ws = new Client(url, protocols, {verify: false})
+    this._ws = new Client(url, protocols, {
+      ca: fs.readFileSync(__dirname + '/../../server.crt')
+    })
 
     this._ws.onopen  = function() { resume(true)  }
     this._ws.onclose = function() { resume(false) }
@@ -77,13 +81,14 @@ JS.ENV.WebSocketSteps = JS.Test.asyncSteps({
 })
 
 
-JS.ENV.ClientSpec = JS.Test.describe("Client", function() { with(this) {
+test.describe("Client", function() { with(this) {
   include(WebSocketSteps)
 
   before(function() {
     this.protocols       = ["foo", "echo"]
-    this.plain_text_url  = "ws://localhost:8000/bayeux"
-    this.secure_url      = "wss://localhost:8000/bayeux"
+    this.plain_text_url  = "ws://localhost:4180/bayeux"
+    this.secure_url      = "wss://localhost:4180/bayeux"
+    this.port            = 4180
   })
 
   sharedBehavior("socket client", function() { with(this) {
@@ -91,11 +96,6 @@ JS.ENV.ClientSpec = JS.Test.describe("Client", function() { with(this) {
       open_socket(socket_url, protocols)
       check_open()
       check_protocol("echo")
-    }})
-
-    it("cannot open a connection with unacceptable protocols", function() { with(this) {
-      open_socket(socket_url, ["foo"])
-      check_closed()
     }})
 
     it("can close the connection", function() { with(this) {
@@ -154,7 +154,7 @@ JS.ENV.ClientSpec = JS.Test.describe("Client", function() { with(this) {
       this.blocked_url = this.secure_url
     })
 
-    before(function() { this.server(8000, false) })
+    before(function() { this.server(4180, false) })
     after (function() { this.stop() })
 
     behavesLike("socket client")
@@ -166,7 +166,7 @@ JS.ENV.ClientSpec = JS.Test.describe("Client", function() { with(this) {
       this.blocked_url = this.plain_text_url
     })
 
-    before(function() { this.server(8000, true) })
+    before(function() { this.server(4180, true) })
     after (function() { this.stop() })
 
     behavesLike("socket client")
